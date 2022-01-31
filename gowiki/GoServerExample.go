@@ -11,6 +11,7 @@ import (
 type Page struct {
 	Name string
 	Body []byte
+  formatLen int
 }
 
 func (p *Page) save() error {
@@ -20,6 +21,17 @@ func (p *Page) save() error {
 func (p *Page) saveCsv() error {
 	filename := p.Name + ".csv"
 	return os.WriteFile(filename, p.Body, 0600)
+}
+
+func trimString(s string, toTrim rune) string{
+  chars := []rune(s)
+  for index, char := range chars {
+    if char == toTrim {
+      chars = append(chars[:index], chars[index+1:]...)
+    }
+  }
+  return s
+  
 }
 
 func convToBytes(s [][]string) []byte {
@@ -59,6 +71,19 @@ func loadCsv(title string) (*Page, error) {
 	}
 	return &Page{Name: title, Body: convToBytes(lines)}, nil
 }
+func splitAlong(c int, a []byte) [][]byte {
+    r := (len(a) + c - 1) / c
+    b := make([][]byte, r)
+    lo, hi := 0, c
+    for i := range b {
+        if hi > len(a) {
+            hi = len(a)
+        }
+        b[i] = a[lo:hi:hi]
+        lo, hi = hi, hi+c
+    }
+    return b
+}
 
 func searchPath(path string, r *http.Request) string {
 	title := r.URL.Path[len("/"+path+"/"):]
@@ -71,7 +96,15 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Fprintf(w, "<h1>%s</h1><div>%s</div>", p.Name, string(p.Body))
+  if err != nil {
+    panic(err)
+  }
+  var splitSlice [][]byte = splitAlong(12, p.Body)
+  
+  fmt.Fprintf(w, "<h1>%s</h1>", p.Name)
+	for _, element := range splitSlice {
+    fmt.Fprintf(w, "<div>%s</div>", "{" + string(element) + "}")
+  }
 }
 
 func editHandler(w http.ResponseWriter, r *http.Request) {
@@ -97,19 +130,9 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/view/"+title, http.StatusFound)
 }
 
-func csvViewHandler(w http.ResponseWriter, r *http.Request) {
-	title := searchPath("view", r)
-	p, err := loadCsv(title)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Fprintf(w, "<h1>%s</h1><div>%s</div>", p.Name, p.Body)
-}
-
 func main() {
 	http.HandleFunc("/view/", viewHandler)
 	http.HandleFunc("/edit/", editHandler)
 	http.HandleFunc("/save/", saveHandler)
-	http.HandleFunc("/viewCsv/", csvViewHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
