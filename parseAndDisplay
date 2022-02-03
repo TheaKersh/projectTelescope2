@@ -1,0 +1,10 @@
+async function displayData(dataObj) {
+  // Deal with dataObj here
+  console.log(displayData)
+}
+
+document.onLoad = () => {
+  fetch("projectTelescope/view")
+    .then(response => response.json())
+    .then(displayData);
+}
